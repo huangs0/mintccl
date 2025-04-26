@@ -3,7 +3,7 @@
 MinTCCL is an attempt on using pure Python (Triton + PyTorch) to implement a minimalistic [NCCL](https://github.com/NVIDIA/nccl) in ~1,200 line of Python. 
 The author envision it as:
 * a development repo that you can easily hack, deploy and fuse the collectives with other Triton kernels.
-* an educational tutorials that you can read through the codes and comments to learn how we gradually implement advanced AlltoAll starting from simplest direct SendRecv.
+* an educational tutorial that you can read through (clean codes and comments) to learn how we gradually implement advanced AlltoAll starting from simplest SendRecv.
 
 ## Structure and How to use
 The structure is too simple to use folders, the core lies in four files:
@@ -12,7 +12,7 @@ The structure is too simple to use folders, the core lies in four files:
 3. `protocol.py` implements NCCL's LL128 protocol primitives, relies on `primitive.py`.
 4. `topology.py` implements topology and routing algorithms, e.g., ring.
 
-Based on these four modules, we can build MPI/NCCL Communication Collectives (independent of each other):
+Based on these four modules, we can build MPI/NCCL Communication Collectives:
 - [x] `1_sendrecv_direct.py`: simplest load/store for send/recv in direct link
 - [x] `2_sendrecv_indirect.py`: use LL128 protocol to support indirect link (multi-hop)
 - [x] `3_sendrecv_buff.py`: use buffer management to save memory usage
@@ -20,10 +20,13 @@ Based on these four modules, we can build MPI/NCCL Communication Collectives (in
 - [x] `5_reduce.py`: 1st computation and deadlocks preventions!
 - [x] `6_allgather.py`: 1st rank-divided algorihtm, supporting spatial/temporal
 - [x] `7_reducescatter.py`: 
-- [ ] `8_allreduce.py`: 
-- [ ] `9_alltoall.py`: 
+- [ ] `8_allreduce.py`
+- [ ] `9_alltoall.py` 
 
-To use, simply copy the four core module and the colletivce you interested into your project, no installation need!
+Each above collective can be used with `mpirun -np 2/4/8 python ...`.
+To integrate into your project, simply copy the four core module and the colletivce you interested into your project, no installation need!
+
+The author orders these collectives into a learning curve that each collective gradually introduces some new (but not too much) knowledge.
 
 ## How it differs from ...
 Compared with NCCL, it cut off:
@@ -38,8 +41,23 @@ Compared with other attempts in Triton + Communication, e.g., [`SymmetricMemory`
 The fundamental of (NCCL and MinTCCL) is that NvLink can be programmed via basic `ld`/`st` primitive (of PTX)
 on machines with [Unified Memory](https://developer.nvidia.com/blog/unified-memory-cuda-beginners/) 
 and [GPU P2P Access](https://developer.nvidia.com/gpudirect)
-support that can map address of the GPU to another. 
-Thus, we can easily reimplement this with `tl.inline_asm_elementwise`
+support that can map GMEM address of the GPU to another. 
+As there's no difference between reading local GMEM, Triton, theoretically, can also be used for communications and MinTCCL tries to prove this. 
+
+## Roadmap
+* Collectives
+  - [ ] AllReduce
+  - [ ] AlltoAll
+  - [ ] Grouped P2P
+* Topology
+  - [x] Ring
+  - [ ] Tree / Binary Tree
+  - [ ] Hypercube
+* Performance Tuning
+  - [ ] Fine-grained control of SM Layout like NCCL
+* Arithemetics Types for ReduceOps
+  - [x] FP16 
+  - [ ] Generic Support of FP32/BF16/FP8
 
 ## Known Issues
 1. On 8-GPU machines, MinTCCL will fail into deadlock, seems a problem of flag maangements, still debugging.

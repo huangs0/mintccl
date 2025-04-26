@@ -137,6 +137,7 @@ def send_ll128(sendbuff, v0, v1, v2, v3):
     store128(sendbuff + BYTES_LL128_MSG + groupLane * VECTORIZED_BYTES, v2, v3)
 
 # NOTE comp_ll128 are used in reduce operation (reduce, reducescatter, allreduce)
+# TODO Implement a type system
 
 @triton.jit
 def comp_ll128(v0, v1, v2, v3, r0, r1, r2, r3): # all are uint64

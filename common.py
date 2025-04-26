@@ -2,7 +2,6 @@
 
 import os
 import time
-from enum import Enum
 import torch
 import triton.language as tl
 import cuda.bindings.runtime as cudart
@@ -67,28 +66,6 @@ class Timer:
         else:
             print(f"# time {elapsed}s")
 
-
-# Some basic Typing like ncclDataType_t and ncclRedOp_t
-class MINTCCLDataType(Enum):
-    """A Simple Enum to facilitate sharing dtype across nodes with MPI Shared Memory"""
-    Float32  = 0
-    Float16  = 1
-    BFloat16 = 2
-    Float64  = 3
-
-DATA_TYPE_TORCH_TO_MINTCCL: dict[MINTCCLDataType, tl.dtype] = {
-    torch.float16: MINTCCLDataType.Float16, 
-    torch.bfloat16: MINTCCLDataType.BFloat16,
-    torch.float32: MINTCCLDataType.Float32, torch.float: MINTCCLDataType.Float32,
-    torch.float64: MINTCCLDataType.Float64
-}
-
-DATA_TYPE_MINTCCL_TO_TORCH: dict[MINTCCLDataType, tl.dtype] = {
-    MINTCCLDataType.Float16: torch.float16, 
-    MINTCCLDataType.BFloat16: torch.bfloat16,
-    MINTCCLDataType.Float32: torch.float32,
-    MINTCCLDataType.Float64: torch.float64
-}
 
 # Macros for convenience
 NULL = tl.constexpr(0) # C NULL

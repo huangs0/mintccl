@@ -227,46 +227,7 @@ def store64(addr, v):
     )
 
 
-"""Reduce Primitives using of width u64/s64
-
-For Communication we don't care about types so we formulates a byte-oriented
-system for the need of protocol like LL128. But for necessary computation like
-Sum in Collectives, we shall care about type, so we build following primitive 
-whose input and output is of u64 and dtype supplied as argument.
-
-TODO Support FP4 and FP8, Problem is that FP4/FP8 is Tensor Core ONLY, not even
-     add for these. We have to do cvt to cast them to and from fp16x2"""
-
-__DTYPE_MAP__: dict[tl.constexpr, str] = {
-    tl.float32:  "f32",
-    tl.float16:  "f16x2",
-    tl.bfloat16: "bf16x2",
-    tl.int32:    "s32",
-    tl.int16:    "s16x2",
-    tl.uint32:   "u32",
-    tl.uint16:   "u16x2",
-} # Map triton dtype to ptx dtype
-
-__REDOP_TEMPLATE__ = """{
-    .reg .v2 .b32 %a, %b;  
-    mov.b64 {%a.x, %a.y}, $1;
-    mov.b64 {%b.x, %b.y}, $2;
-    redop.dtype %a.x, %a.x, %b.x;
-    redop.dtype %a.y, %a.y, %b.y;
-    mov.b64 $0, %a;
-}""" # A template, use replace instead of format as `{}` is also ptx syntax :(
-
-__FP8_REDOP_TEMPLATE__ = ""
-__FP4_REDOP_TEMPLATE__ = ""
-
-__SUM_FP16_TEMPLATE__ = """{
-    .reg .v2 .b32 %a, %b;
-    mov.b64 {%a.x, %a.y}, $1;
-    mov.b64 {%b.x, %b.y}, $2;
-    add.f16x2 %a.x, %a.x, %b.x;
-    add.f16x2 %a.y, %a.y, %b.y;
-    mov.b64 $0, %a;
-}"""
+"""Reduce Primitives using of width u64"""
 
 @triton.jit
 def SumFP16(a: tl.tensor, b: tl.tensor):
@@ -284,49 +245,3 @@ def SumFP16(a: tl.tensor, b: tl.tensor):
         dtype=(tl.uint64), # return 1 u64
         is_pure=False, 
         pack=1)
-
-@triton.jit
-def _Sum(a: tl.tensor, b: tl.tensor, dtype: tl.constexpr):
-    return tl.inline_asm_elementwise(
-        __REDOP_TEMPLATE__.replace("dtype", __DTYPE_MAP__[dtype]).replace("redop", "add"),
-        constraints="=l, l, l", 
-        args=(a, b),       # inputs as u64
-        dtype=(tl.uint64), # return as u64
-        is_pure=True, 
-        pack=1)
-
-@triton.jit
-def _Prod(a: tl.tensor, b: tl.tensor, dtype: tl.constexpr):
-    return tl.inline_asm_elementwise(
-        __REDOP_TEMPLATE__.replace("dtype", __DTYPE_MAP__[dtype]).replace("redop", "mul"),
-        constraints="=l, l, l", 
-        args=(a, b), 
-        dtype=(tl.uint64),
-        is_pure=True, 
-        pack=1)
-
-@triton.jit
-def _Min(a: tl.tensor, b: tl.tensor, dtype: tl.constexpr):
-    return tl.inline_asm_elementwise(
-        __REDOP_TEMPLATE__.replace("dtype", __DTYPE_MAP__[dtype]).replace("redop", "min"),
-        constraints="=l, l, l", 
-        args=(a, b), 
-        dtype=(tl.uint64),
-        is_pure=True, 
-        pack=1)
-
-@triton.jit
-def _Max(a: tl.tensor, b: tl.tensor, dtype: tl.constexpr):
-    return tl.inline_asm_elementwise(
-        __REDOP_TEMPLATE__.replace("dtype", __DTYPE_MAP__[dtype]).replace("redop", "max"),
-        constraints="=l, l, l", 
-        args=(a, b), 
-        dtype=(tl.uint64),
-        is_pure=True, 
-        pack=1)
-
-class RedOp(Enum): # Export as an enum
-    Sum  = _Sum
-    Prod = _Prod
-    Min  = _Min
-    Max  = _Max
